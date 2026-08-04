@@ -1,10 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import {
-  getCategories,
-  getProductBySlug,
-  getRelatedProducts,
-} from "@/lib/queries/products";
+import { getCategories, getProductBySlug } from "@/lib/queries/products";
+import { getPersonalizedRecommendations } from "@/lib/queries/recommendations";
 import { getFavoriteProductIds } from "@/lib/actions/favorites";
 import { ProductPlaceholder } from "@/components/ProductPlaceholder";
 import { ProductCard } from "@/components/ProductCard";
@@ -24,7 +21,7 @@ export default async function ProductPage({
 
   const [categories, related, favoriteIds] = await Promise.all([
     getCategories(),
-    getRelatedProducts(product.category_id, product.id),
+    getPersonalizedRecommendations(product.id, product.category_id),
     getFavoriteProductIds(),
   ]);
 

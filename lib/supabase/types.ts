@@ -291,6 +291,10 @@ export type Database = {
         Args: { p_user_id: string };
         Returns: undefined;
       };
+      get_paired_products: {
+        Args: { p_product_ids: string[]; p_limit?: number };
+        Returns: { product_id: string; pair_count: number }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

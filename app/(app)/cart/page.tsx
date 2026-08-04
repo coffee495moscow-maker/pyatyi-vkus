@@ -5,6 +5,7 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { useCartStore, cartTotalKopecks } from "@/lib/store/cart";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
+import { CartRecommendations } from "./cart-recommendations";
 
 export default function CartPage() {
   const items = useCartStore((s) => s.items);
@@ -80,6 +81,7 @@ export default function CartPage() {
           Оформить заказ
         </Button>
       </Link>
+      <CartRecommendations productIds={items.map((i) => i.productId)} />
     </div>
   );
 }

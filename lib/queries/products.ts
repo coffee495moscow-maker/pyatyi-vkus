@@ -35,18 +35,3 @@ export async function getProductBySlug(slug: string) {
   if (error) throw error;
   return data;
 }
-
-export async function getRelatedProducts(categoryId: string, excludeId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("category_id", categoryId)
-    .eq("is_available", true)
-    .neq("id", excludeId)
-    .order("is_hit", { ascending: false })
-    .limit(4);
-
-  if (error) throw error;
-  return data;
-}
