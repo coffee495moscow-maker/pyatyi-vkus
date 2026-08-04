@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg: #1a1210;
+  --color-surface: #241d18;
+  --color-surface-elevated: #2a1f19;
+  --color-accent: #d99a5b;
+  --color-accent-contrast: #1a1210;
+  --color-text: #faf7f2;
+  --color-text-muted: #bfb6af;
+  --color-border: rgba(250, 247, 242, 0.12);
+  --color-danger: #e2694f;
+  --color-success: #7fae6f;
+
+  --font-display: var(--font-prata);
+  --font-body: var(--font-manrope);
+}
+
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-elevated: var(--color-surface-elevated);
+  --color-accent: var(--color-accent);
+  --color-accent-contrast: var(--color-accent-contrast);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-border: var(--color-border);
+  --color-danger: var(--color-danger);
+  --color-success: var(--color-success);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body), Manrope, Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display), Prata, serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: inherit;
+}
+
+.pill {
+  border-radius: 999px;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
