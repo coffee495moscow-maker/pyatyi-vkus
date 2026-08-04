@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/queries/profile";
 import { signOut } from "@/lib/actions/auth";
 import { TIER_LABELS } from "@/lib/queries/loyalty";
 import { createClient } from "@/lib/supabase/server";
+import { PushToggle } from "@/components/PushToggle";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -54,6 +55,8 @@ export default async function ProfilePage() {
           </Link>
         ))}
       </nav>
+
+      <PushToggle />
 
       <form action={signOut}>
         <button
