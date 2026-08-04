@@ -295,6 +295,10 @@ export type Database = {
         Args: { p_product_ids: string[]; p_limit?: number };
         Returns: { product_id: string; pair_count: number }[];
       };
+      admin_update_order_status: {
+        Args: { p_order_id: string; p_new_status: string };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
