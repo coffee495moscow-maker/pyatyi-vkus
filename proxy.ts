@@ -50,7 +50,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const protectedPrefixes = ["/profile", "/checkout"];
+  const protectedPrefixes = ["/profile", "/checkout", "/bonuses"];
   if (
     !user &&
     protectedPrefixes.some((p) => request.nextUrl.pathname.startsWith(p))
