@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BottomTabBar } from "@/components/BottomTabBar";
+import { CartFAB } from "@/components/CartFAB";
 import { brand } from "@/content/brand";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
       </header>
       <main className="flex-1 pb-24">{children}</main>
+      <CartFAB />
       <BottomTabBar />
     </div>
   );

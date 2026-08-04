@@ -271,7 +271,27 @@ export type Database = {
       >;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_order: {
+        Args: {
+          p_items: { product_id: string; quantity: number }[];
+          p_fulfillment_type?: string;
+          p_pickup_note?: string | null;
+          p_contact_phone?: string | null;
+          p_comment?: string | null;
+          p_points_to_redeem?: number;
+        };
+        Returns: string;
+      };
+      attach_payment: {
+        Args: { p_order_id: string; p_provider: string; p_payment_id: string };
+        Returns: undefined;
+      };
+      check_and_award_badges: {
+        Args: { p_user_id: string };
+        Returns: undefined;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
