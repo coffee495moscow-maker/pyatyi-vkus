@@ -1,14 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #1a1210;
-  --color-surface: #241d18;
-  --color-surface-elevated: #2a1f19;
-  --color-accent: #d99a5b;
-  --color-accent-contrast: #1a1210;
-  --color-text: #faf7f2;
-  --color-text-muted: #bfb6af;
-  --color-border: rgba(250, 247, 242, 0.12);
+  /* Brand palette (client-supplied): gold #C9922E, cream #F6F1E8, dark #211A16 */
+  --color-bg: #211a16;
+  --color-surface: #2b2119;
+  --color-surface-elevated: #34281e;
+  --color-accent: #c9922e;
+  --color-accent-contrast: #211a16;
+  --color-text: #f6f1e8;
+  --color-text-muted: #b8ac9c;
+  --color-border: rgba(246, 241, 232, 0.12);
   --color-danger: #e2694f;
   --color-success: #7fae6f;
 

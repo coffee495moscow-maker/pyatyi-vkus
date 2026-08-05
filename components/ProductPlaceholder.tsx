@@ -1,7 +1,7 @@
 import { hueOffsetForSlug, motifForCategory } from "@/lib/placeholders";
 import { cn } from "@/lib/utils";
 
-const BASE_HUE = 33; // matches --color-accent (#d99a5b)
+const BASE_HUE = 39; // matches --color-accent (#c9922e)
 
 function Motif({ motif }: { motif: ReturnType<typeof motifForCategory> }) {
   const common = { fill: "none", stroke: "white", strokeOpacity: 0.35, strokeWidth: 1.4 };

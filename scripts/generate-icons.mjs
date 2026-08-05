@@ -5,8 +5,8 @@
 import sharp from "sharp";
 import { mkdirSync } from "node:fs";
 
-const BG = "#1a1210";
-const ACCENT = "#d99a5b";
+const BG = "#211a16";
+const ACCENT = "#c9922e";
 
 function markSvg({ size, padding = 0 }) {
   const inner = size - padding * 2;
