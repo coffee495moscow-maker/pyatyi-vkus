@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "node scripts/seed.mjs",
-    "db:make-admin": "node scripts/make-admin.mjs"
+    "db:make-admin": "node scripts/make-admin.mjs",
+    "test": "tsx --test lib/*.test.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -37,6 +38,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.9",
     "typescript": "^5"
   }
 }
