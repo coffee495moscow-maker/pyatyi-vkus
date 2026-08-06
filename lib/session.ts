@@ -7,6 +7,13 @@ import type { PublicUser } from "@/lib/db/types";
 const SESSION_COOKIE = "session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+// `Secure` cookies are only ever sent back over HTTPS. Tying this to
+// NODE_ENV alone breaks login on a fresh deploy — the documented first-run
+// setup serves plain HTTP on the server's bare IP (no domain yet, see
+// Caddyfile/README) — so this follows NEXT_PUBLIC_SITE_URL's scheme
+// instead, which the operator updates to https:// once a domain is set.
+const COOKIE_SECURE = (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https://");
+
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
@@ -20,7 +27,7 @@ export async function createSession(userId: string) {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     sameSite: "lax",
     path: "/",
     expires: expiresAt,

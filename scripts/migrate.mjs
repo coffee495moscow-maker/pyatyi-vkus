@@ -1,6 +1,9 @@
 // Tiny migration runner for self-hosted Postgres — no Supabase CLI involved.
 // Applies db/migrations/*.sql in filename order, tracking what's already run
-// in a `_migrations` table. Idempotent: re-running only applies new files.
+// in a `_migrations` table by filename. Idempotent: re-running only applies
+// new files — once a migration has shipped, don't edit it, add a new one
+// (0003_*.sql, etc.), otherwise already-migrated databases will silently
+// keep the old version since only the filename is tracked, not content.
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import pg from "pg";

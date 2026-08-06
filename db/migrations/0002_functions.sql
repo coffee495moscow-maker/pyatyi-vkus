@@ -51,7 +51,9 @@ begin
     v_subtotal := v_subtotal + v_product.price_kopecks * (v_item->>'quantity')::int;
   end loop;
 
-  select points_balance into v_balance from users where id = p_user_id;
+  -- Lock the user's row for the rest of this transaction so two concurrent
+  -- checkouts can't both read the same balance and both redeem against it.
+  select points_balance into v_balance from users where id = p_user_id for update;
   v_max_redeem := floor(v_subtotal * 0.5 / 100)::int; -- cap: 50% of subtotal, 1 point = 1 ruble
   v_points := least(greatest(coalesce(p_points_to_redeem, 0), 0), coalesce(v_balance, 0), v_max_redeem);
   v_discount := v_points * 100;

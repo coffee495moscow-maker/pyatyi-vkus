@@ -6,13 +6,16 @@ const UPLOAD_DIR = path.resolve(
   /* turbopackIgnore: true */ process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads"),
 );
 
+// No SVG: it's XML and can carry executable script, and lib/storage.ts
+// never writes one (uploads are validated by magic bytes, not extension) —
+// so an unrecognized extension here always falls back to a generic binary
+// type rather than ever being trusted as markup/script.
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
   ".webp": "image/webp",
   ".gif": "image/gif",
-  ".svg": "image/svg+xml",
 };
 
 export async function GET(
@@ -33,6 +36,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(data), {
       headers: {
         "Content-Type": MIME_TYPES[ext] ?? "application/octet-stream",
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     });

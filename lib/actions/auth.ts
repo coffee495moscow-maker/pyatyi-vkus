@@ -7,10 +7,17 @@ import { pool } from "@/lib/db/pool";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession, destroySession } from "@/lib/session";
 import { sendMail, isMailConfigured } from "@/lib/mail";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export type AuthActionState = { error: string | null };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Only ever redirect to a same-origin path — blocks open-redirect payloads like "https://evil.com" or "//evil.com". */
+function safeRedirectPath(value: string): string {
+  if (value.startsWith("/") && !value.startsWith("//")) return value;
+  return "/";
+}
 
 export async function signIn(
   _prevState: AuthActionState,
@@ -20,7 +27,12 @@ export async function signIn(
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const redirectTo = String(formData.get("redirectTo") ?? "/");
+  const redirectTo = safeRedirectPath(String(formData.get("redirectTo") ?? "/"));
+
+  const ip = await getClientIp();
+  if (!checkRateLimit(`signin:${ip}:${email}`, 10, 15 * 60 * 1000)) {
+    return { error: "Слишком много попыток входа. Попробуйте через несколько минут." };
+  }
 
   const { rows } = await pool.query("select id, password_hash from users where email = $1", [
     email,
@@ -51,6 +63,11 @@ export async function signUp(
   }
   if (password.length < 8) {
     return { error: "Пароль должен быть не короче 8 символов." };
+  }
+
+  const ip = await getClientIp();
+  if (!checkRateLimit(`signup:${ip}`, 5, 60 * 60 * 1000)) {
+    return { error: "Слишком много регистраций с этого адреса. Попробуйте позже." };
   }
 
   const client = await pool.connect();
@@ -106,6 +123,13 @@ export async function requestPasswordReset(
     .trim()
     .toLowerCase();
 
+  const ip = await getClientIp();
+  if (!checkRateLimit(`reset:${ip}:${email}`, 5, 60 * 60 * 1000)) {
+    // Still report generic success — don't let the rate limit itself leak
+    // whether the email is registered.
+    return { error: null };
+  }
+
   const { rows } = await pool.query("select id from users where email = $1", [email]);
   const user = rows[0];
 
@@ -126,10 +150,11 @@ export async function requestPasswordReset(
         "Пятый вкус — восстановление пароля",
         `Перейдите по ссылке, чтобы задать новый пароль: ${resetUrl}\n\nСсылка действует 1 час.`,
       );
-    } else {
-      // No SMTP configured yet (self-hosted setup) — surface the link so
-      // whoever's testing can still complete the flow; swap for real email
-      // once SMTP_* env vars are set (see .env.example).
+    } else if (process.env.NODE_ENV !== "production") {
+      // No SMTP configured yet — surface the link in local/dev logs only so
+      // the flow is testable. Never do this in production: the token is a
+      // bearer credential for the account, and container logs may be more
+      // widely readable than the mailbox it would otherwise go to.
       console.warn(`Password reset link for ${email}: ${resetUrl}`);
     }
   }
@@ -149,23 +174,44 @@ export async function updatePassword(
     return { error: "Пароль должен быть не короче 8 символов." };
   }
 
-  const { rows } = await pool.query(
-    "select user_id from password_resets where token = $1 and expires_at > now()",
-    [token],
-  );
-  const reset = rows[0];
+  const client = await pool.connect();
+  let userId: string;
+  try {
+    await client.query("begin");
 
-  if (!reset) {
-    return { error: "Ссылка недействительна или устарела. Запросите новую." };
+    // Atomically consume the token — a DELETE...RETURNING means only one
+    // concurrent request (double-click, retried form) can ever get a row
+    // back, closing the reuse race a plain select-then-delete would allow.
+    const { rows } = await client.query(
+      "delete from password_resets where token = $1 and expires_at > now() returning user_id",
+      [token],
+    );
+    const reset = rows[0];
+
+    if (!reset) {
+      await client.query("rollback");
+      return { error: "Ссылка недействительна или устарела. Запросите новую." };
+    }
+
+    userId = reset.user_id;
+    const passwordHash = await hashPassword(password);
+    await client.query("update users set password_hash = $1 where id = $2", [
+      passwordHash,
+      userId,
+    ]);
+
+    // Invalidate every other session for this account — a password reset
+    // should also kick out anyone else (or anything else) still logged in.
+    await client.query("delete from sessions where user_id = $1", [userId]);
+
+    await client.query("commit");
+  } catch {
+    await client.query("rollback");
+    return { error: "Не удалось обновить пароль. Попробуйте ещё раз." };
+  } finally {
+    client.release();
   }
 
-  const passwordHash = await hashPassword(password);
-  await pool.query("update users set password_hash = $1 where id = $2", [
-    passwordHash,
-    reset.user_id,
-  ]);
-  await pool.query("delete from password_resets where token = $1", [token]);
-
-  await createSession(reset.user_id);
+  await createSession(userId);
   redirect("/profile");
 }

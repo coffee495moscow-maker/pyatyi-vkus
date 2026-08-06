@@ -4,28 +4,39 @@ import { revalidatePath } from "next/cache";
 import { pool } from "@/lib/db/pool";
 import { requireAdmin } from "@/lib/session";
 
-const ALLOWED_TRANSITIONS = ["preparing", "ready", "completed", "cancelled"];
+// Mirrors the buttons shown in app/admin/orders/[id]/order-status-actions.tsx —
+// enforced here too, since a client can call this Server Action directly
+// with any (orderId, newStatus) pair regardless of what the UI offers.
+const ALLOWED_FROM: Record<string, string[]> = {
+  paid: ["preparing", "cancelled"],
+  preparing: ["ready"],
+  ready: ["completed"],
+};
 
 export async function updateOrderStatus(orderId: string, newStatus: string) {
   const admin = await requireAdmin();
-
-  if (!ALLOWED_TRANSITIONS.includes(newStatus)) {
-    return { error: "Недопустимый статус." };
-  }
 
   const client = await pool.connect();
   try {
     await client.query("begin");
 
-    const { rowCount } = await client.query("update orders set status = $1 where id = $2", [
-      newStatus,
-      orderId,
-    ]);
+    const { rows } = await client.query<{ status: string }>(
+      "select status from orders where id = $1 for update",
+      [orderId],
+    );
+    const currentStatus = rows[0]?.status;
 
-    if (rowCount === 0) {
+    if (!currentStatus) {
       await client.query("rollback");
       return { error: "Заказ не найден." };
     }
+
+    if (!ALLOWED_FROM[currentStatus]?.includes(newStatus)) {
+      await client.query("rollback");
+      return { error: "Недопустимый переход статуса." };
+    }
+
+    await client.query("update orders set status = $1 where id = $2", [newStatus, orderId]);
 
     await client.query(
       "insert into order_status_history (order_id, status, changed_by) values ($1, $2, $3)",

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { pool } from "@/lib/db/pool";
 import { requireAdmin } from "@/lib/session";
-import { saveUploadedFile } from "@/lib/storage";
+import { saveUploadedFile, InvalidUploadError } from "@/lib/storage";
 
 export type ProductActionState = { error: string | null };
 
@@ -39,7 +39,13 @@ export async function createProduct(
     return { error: "Заполните название, ЧПУ-слаг и категорию." };
   }
 
-  const imagePath = await uploadImageIfProvided(formData);
+  let imagePath: string | undefined;
+  try {
+    imagePath = await uploadImageIfProvided(formData);
+  } catch (err) {
+    if (err instanceof InvalidUploadError) return { error: err.message };
+    throw err;
+  }
 
   try {
     await pool.query(
@@ -80,7 +86,13 @@ export async function updateProduct(
     return { error: "Заполните название, ЧПУ-слаг и категорию." };
   }
 
-  const imagePath = await uploadImageIfProvided(formData);
+  let imagePath: string | undefined;
+  try {
+    imagePath = await uploadImageIfProvided(formData);
+  } catch (err) {
+    if (err instanceof InvalidUploadError) return { error: err.message };
+    throw err;
+  }
 
   try {
     if (imagePath) {
