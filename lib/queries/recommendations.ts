@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { pool } from "@/lib/db/pool";
+import { getSession } from "@/lib/session";
+import type { Product } from "@/lib/db/types";
 
 /**
  * "Вам может понравиться" on the product detail page. Logged-in users with
@@ -11,73 +13,56 @@ export async function getPersonalizedRecommendations(
   excludeProductId: string,
   fallbackCategoryId: string,
   limit = 4,
-) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+): Promise<Product[]> {
+  const user = await getSession();
 
   if (user) {
-    const { data: paidOrders } = await supabase
-      .from("orders")
-      .select("id")
-      .eq("user_id", user.id)
-      .in("status", ["paid", "preparing", "ready", "completed"]);
-
-    const paidOrderIds = (paidOrders ?? []).map((o) => o.id);
-
-    const { data: orderedItems } = paidOrderIds.length
-      ? await supabase.from("order_items").select("product_id").in("order_id", paidOrderIds)
-      : { data: [] as { product_id: string }[] };
-
-    const orderedProductIds = new Set(
-      (orderedItems ?? []).map((i) => i.product_id),
+    const { rows: orderedItems } = await pool.query<{ product_id: string }>(
+      `select distinct oi.product_id
+       from order_items oi
+       join orders o on o.id = oi.order_id
+       where o.user_id = $1 and o.status in ('paid', 'preparing', 'ready', 'completed')`,
+      [user.id],
     );
 
-    if (orderedProductIds.size > 0) {
-      const { data: purchasedProducts } = await supabase
-        .from("products")
-        .select("category_id")
-        .in("id", Array.from(orderedProductIds));
+    const orderedProductIds = new Set(orderedItems.map((i) => i.product_id));
 
-      const preferredCategoryIds = Array.from(
-        new Set((purchasedProducts ?? []).map((p) => p.category_id)),
+    if (orderedProductIds.size > 0) {
+      const { rows: purchasedCategories } = await pool.query<{ category_id: string }>(
+        "select distinct category_id from products where id = any($1::uuid[])",
+        [Array.from(orderedProductIds)],
       );
 
-      if (preferredCategoryIds.length > 0) {
-        const { data } = await supabase
-          .from("products")
-          .select("*")
-          .in("category_id", preferredCategoryIds)
-          .eq("is_available", true)
-          .neq("id", excludeProductId)
-          .order("is_hit", { ascending: false })
-          .order("is_new", { ascending: false })
-          .limit(limit + orderedProductIds.size);
+      const preferredCategoryIds = purchasedCategories.map((p) => p.category_id);
 
-        const filtered = (data ?? []).filter((p) => !orderedProductIds.has(p.id));
+      if (preferredCategoryIds.length > 0) {
+        const { rows } = await pool.query<Product>(
+          `select * from products
+           where category_id = any($1::uuid[]) and is_available = true and id <> $2
+           order by is_hit desc, is_new desc
+           limit $3`,
+          [preferredCategoryIds, excludeProductId, limit + orderedProductIds.size],
+        );
+
+        const filtered = rows.filter((p) => !orderedProductIds.has(p.id));
         if (filtered.length > 0) return filtered.slice(0, limit);
       }
     }
   }
 
-  const { data: featured } = await supabase
-    .from("products")
-    .select("*")
-    .eq("is_available", true)
-    .neq("id", excludeProductId)
-    .or("is_featured.eq.true,is_hit.eq.true")
-    .limit(limit);
+  const { rows: featured } = await pool.query<Product>(
+    `select * from products
+     where is_available = true and id <> $1 and (is_featured = true or is_hit = true)
+     limit $2`,
+    [excludeProductId, limit],
+  );
+  if (featured.length > 0) return featured;
 
-  if (featured && featured.length > 0) return featured;
-
-  const { data: sameCategory } = await supabase
-    .from("products")
-    .select("*")
-    .eq("category_id", fallbackCategoryId)
-    .eq("is_available", true)
-    .neq("id", excludeProductId)
-    .limit(limit);
-
-  return sameCategory ?? [];
+  const { rows: sameCategory } = await pool.query<Product>(
+    `select * from products
+     where category_id = $1 and is_available = true and id <> $2
+     limit $3`,
+    [fallbackCategoryId, excludeProductId, limit],
+  );
+  return sameCategory;
 }

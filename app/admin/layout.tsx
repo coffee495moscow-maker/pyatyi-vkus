@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/session";
 
 const NAV = [
   { href: "/admin", label: "Обзор" },
@@ -15,21 +15,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSession();
 
   if (!user) redirect("/login?redirect=/admin");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
   // Defense in depth — proxy.ts already enforces this at the routing layer.
-  if (profile?.role !== "admin") redirect("/");
+  if (user.role !== "admin") redirect("/");
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-text">

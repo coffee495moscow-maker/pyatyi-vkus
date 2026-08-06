@@ -1,37 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
+import { pool } from "@/lib/db/pool";
+import type { Category, Product } from "@/lib/db/types";
 
-export async function getCategories() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .order("sort_order");
-
-  if (error) throw error;
-  return data;
+export async function getCategories(): Promise<Category[]> {
+  const { rows } = await pool.query("select * from categories order by sort_order");
+  return rows;
 }
 
-export async function getProducts() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("is_available", true)
-    .order("sort_order");
-
-  if (error) throw error;
-  return data;
+export async function getProducts(): Promise<Product[]> {
+  const { rows } = await pool.query(
+    "select * from products where is_available = true order by sort_order",
+  );
+  return rows;
 }
 
-export async function getProductBySlug(slug: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("slug", slug)
-    .eq("is_available", true)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
+export async function getProductBySlug(slug: string): Promise<Product | null> {
+  const { rows } = await pool.query(
+    "select * from products where slug = $1 and is_available = true",
+    [slug],
+  );
+  return rows[0] ?? null;
 }

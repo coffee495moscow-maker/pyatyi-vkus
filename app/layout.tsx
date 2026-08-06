@@ -31,6 +31,12 @@ export const metadata: Metadata = {
   },
 };
 
+// The whole app reads from Postgres and/or the session cookie somewhere in
+// its tree (catalog, cart, account, admin) — no page benefits from static
+// generation, and forcing dynamic rendering here avoids DB calls sneaking
+// into the build step (which has no database available).
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   themeColor: "#211a16",
   width: "device-width",

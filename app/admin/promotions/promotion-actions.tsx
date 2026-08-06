@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  publishAndNotifyPromotion,
+  publishPromotion,
   deactivatePromotion,
 } from "@/lib/actions/admin/promotions";
 import { Button } from "@/components/ui/button";
@@ -28,13 +28,13 @@ export function PromotionActions({
           if (isActive) {
             await deactivatePromotion(promotionId);
           } else {
-            await publishAndNotifyPromotion(promotionId);
+            await publishPromotion(promotionId);
           }
           router.refresh();
         })
       }
     >
-      {isActive ? "Снять с публикации" : "Опубликовать и уведомить"}
+      {isActive ? "Снять с публикации" : "Опубликовать"}
     </Button>
   );
 }

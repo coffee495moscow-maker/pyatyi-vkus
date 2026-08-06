@@ -4,18 +4,11 @@ import { ChevronRight, LogOut } from "lucide-react";
 import { getCurrentProfile } from "@/lib/queries/profile";
 import { signOut } from "@/lib/actions/auth";
 import { TIER_LABELS } from "@/lib/queries/loyalty";
-import { createClient } from "@/lib/supabase/server";
-import { PushToggle } from "@/components/PushToggle";
 
 export default async function ProfilePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login?redirect=/profile");
-
   const profile = await getCurrentProfile();
+
+  if (!profile) redirect("/login?redirect=/profile");
 
   const links = [
     { href: "/profile/orders", label: "История заказов" },
@@ -24,22 +17,20 @@ export default async function ProfilePage() {
     { href: "/profile/edit", label: "Редактировать профиль" },
   ];
 
-  if (profile?.role === "admin") {
+  if (profile.role === "admin") {
     links.push({ href: "/admin", label: "Админ-панель" });
   }
 
   return (
     <div className="flex flex-col gap-6 px-5 pt-8 pb-4">
       <div className="rounded-2xl border border-border bg-surface p-5">
-        <p className="font-display text-xl">{profile?.full_name || user.email}</p>
-        <p className="text-sm text-text-muted">{user.email}</p>
+        <p className="font-display text-xl">{profile.full_name || profile.email}</p>
+        <p className="text-sm text-text-muted">{profile.email}</p>
         <div className="mt-3 flex items-center gap-3 text-sm">
           <span className="pill border border-accent/50 px-3 py-1 text-accent">
-            {TIER_LABELS[profile?.tier ?? "bronze"]}
+            {TIER_LABELS[profile.tier]}
           </span>
-          <span className="text-text-muted">
-            {profile?.points_balance ?? 0} баллов
-          </span>
+          <span className="text-text-muted">{profile.points_balance} баллов</span>
         </div>
       </div>
 
@@ -55,8 +46,6 @@ export default async function ProfilePage() {
           </Link>
         ))}
       </nav>
-
-      <PushToggle />
 
       <form action={signOut}>
         <button

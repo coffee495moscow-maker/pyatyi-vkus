@@ -1,34 +1,25 @@
-import { createClient } from "@/lib/supabase/server";
+import { pool } from "@/lib/db/pool";
+import { getSession } from "@/lib/session";
+import type { Category, Product } from "@/lib/db/types";
 
-export async function getUserFavoriteProductsWithCategories() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+export async function getUserFavoriteProductsWithCategories(): Promise<{
+  products: Product[];
+  categories: Category[];
+}> {
+  const user = await getSession();
   if (!user) return { products: [], categories: [] };
 
-  const { data: favorites, error } = await supabase
-    .from("favorites")
-    .select("product_id")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
-  const productIds = (favorites ?? []).map((f) => f.product_id);
-  if (productIds.length === 0) return { products: [], categories: [] };
-
-  const [{ data: products }, { data: categories }] = await Promise.all([
-    supabase.from("products").select("*").in("id", productIds),
-    supabase.from("categories").select("*"),
-  ]);
-
-  // Preserve favorited-most-recently-first order.
-  const bySlugOrder = new Map(productIds.map((id, idx) => [id, idx]));
-  const sorted = (products ?? []).slice().sort(
-    (a, b) => (bySlugOrder.get(a.id) ?? 0) - (bySlugOrder.get(b.id) ?? 0),
+  const { rows: products } = await pool.query<Product>(
+    `select p.* from favorites f
+     join products p on p.id = f.product_id
+     where f.user_id = $1
+     order by f.created_at desc`,
+    [user.id],
   );
 
-  return { products: sorted, categories: categories ?? [] };
+  if (products.length === 0) return { products: [], categories: [] };
+
+  const { rows: categories } = await pool.query<Category>("select * from categories");
+
+  return { products, categories };
 }

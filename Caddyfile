@@ -1,0 +1,7 @@
+# Reverse proxy in front of the app container. Defaults to plain HTTP on the
+# server's bare IP — set SITE_ADDRESS to a real domain (in .env) once you
+# have one, and Caddy automatically provisions Let's Encrypt HTTPS for it.
+{$SITE_ADDRESS:185.74.45.186} {
+	reverse_proxy app:3000
+	encode gzip
+}

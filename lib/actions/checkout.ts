@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { pool } from "@/lib/db/pool";
+import { getSession } from "@/lib/session";
 import { getPaymentProvider } from "@/lib/payments";
 
 export type CheckoutActionState = { error: string | null };
@@ -10,11 +11,7 @@ export async function checkout(
   _prevState: CheckoutActionState,
   formData: FormData,
 ): Promise<CheckoutActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getSession();
   if (!user) {
     redirect("/login?redirect=/checkout");
   }
@@ -42,30 +39,37 @@ export async function checkout(
     return { error: "Укажите телефон для связи." };
   }
 
-  const { data: orderId, error: orderError } = await supabase.rpc("create_order", {
-    p_items: items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
-    p_fulfillment_type: "pickup",
-    p_pickup_note: pickupNote || null,
-    p_contact_phone: contactPhone,
-    p_comment: comment || null,
-    p_points_to_redeem: pointsToRedeem,
-  });
+  const cartItemsJson = JSON.stringify(
+    items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
+  );
 
-  if (orderError || !orderId) {
+  let orderId: string;
+  let totalKopecks: number;
+  try {
+    const { rows } = await pool.query<{ create_order: string }>(
+      `select create_order($1, $2::jsonb, $3, $4, $5, $6, $7) as create_order`,
+      [
+        user.id,
+        cartItemsJson,
+        "pickup",
+        pickupNote || null,
+        contactPhone,
+        comment || null,
+        pointsToRedeem,
+      ],
+    );
+    orderId = rows[0].create_order;
+
+    const { rows: orderRows } = await pool.query<{ total_kopecks: number }>(
+      "select total_kopecks from orders where id = $1",
+      [orderId],
+    );
+    totalKopecks = orderRows[0].total_kopecks;
+  } catch {
     return {
       error:
         "Не удалось оформить заказ — возможно, часть товаров уже недоступна. Обновите корзину и попробуйте снова.",
     };
-  }
-
-  const { data: order, error: fetchError } = await supabase
-    .from("orders")
-    .select("total_kopecks")
-    .eq("id", orderId)
-    .single();
-
-  if (fetchError || !order) {
-    return { error: "Заказ создан, но не удалось перейти к оплате. Свяжитесь с нами." };
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -74,18 +78,20 @@ export async function checkout(
     const provider = getPaymentProvider();
     const payment = await provider.createPayment({
       orderId,
-      amountKopecks: order.total_kopecks,
+      amountKopecks: totalKopecks,
       description: `Заказ №${orderId.slice(0, 8)} — Пятый вкус`,
       returnUrl: `${siteUrl}/checkout/confirmation/${orderId}`,
     });
 
-    const { error: attachError } = await supabase.rpc("attach_payment", {
-      p_order_id: orderId,
-      p_provider: "yookassa",
-      p_payment_id: payment.paymentId,
-    });
+    const { rowCount } = await pool.query(
+      `update orders
+       set status = 'awaiting_payment', payment_provider = 'yookassa',
+           payment_id = $1, payment_status = 'pending'
+       where id = $2 and user_id = $3 and status = 'created'`,
+      [payment.paymentId, orderId, user.id],
+    );
 
-    if (attachError) {
+    if (rowCount === 0) {
       return { error: "Заказ создан, но не удалось открыть оплату. Свяжитесь с нами." };
     }
 

@@ -3,10 +3,7 @@
 import { useMemo, useState } from "react";
 import { CategoryPills } from "@/components/CategoryPills";
 import { ProductCard } from "@/components/ProductCard";
-import type { Database } from "@/lib/supabase/types";
-
-type Product = Database["public"]["Tables"]["products"]["Row"];
-type Category = Database["public"]["Tables"]["categories"]["Row"];
+import type { Category, Product } from "@/lib/db/types";
 
 export function MenuGrid({
   categories,

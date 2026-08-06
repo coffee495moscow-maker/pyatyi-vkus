@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { pool } from "@/lib/db/pool";
+import { requireAdmin } from "@/lib/session";
 
 export type PromotionActionState = { error: string | null };
 
@@ -10,7 +11,7 @@ export async function createPromotion(
   _prevState: PromotionActionState,
   formData: FormData,
 ): Promise<PromotionActionState> {
-  const supabase = await createClient();
+  await requireAdmin();
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -19,13 +20,12 @@ export async function createPromotion(
     return { error: "Укажите заголовок акции." };
   }
 
-  const { error } = await supabase.from("promotions").insert({
-    title,
-    description,
-    is_active: false,
-  });
-
-  if (error) {
+  try {
+    await pool.query(
+      "insert into promotions (title, description, is_active) values ($1, $2, false)",
+      [title, description],
+    );
+  } catch {
     return { error: "Не удалось создать акцию." };
   }
 
@@ -33,20 +33,14 @@ export async function createPromotion(
   redirect("/admin/promotions");
 }
 
-/**
- * Flips is_active true and stamps notified_at. A Postgres Database Webhook
- * on promotions UPDATE (configured in the Supabase dashboard/CLI, see
- * supabase/functions/send-push) picks up the notified_at transition and
- * broadcasts a push to all subscribers — no push logic lives here.
- */
-export async function publishAndNotifyPromotion(promotionId: string) {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("promotions")
-    .update({ is_active: true, notified_at: new Date().toISOString() })
-    .eq("id", promotionId);
+export async function publishPromotion(promotionId: string) {
+  await requireAdmin();
 
-  if (error) return { error: "Не удалось опубликовать акцию." };
+  try {
+    await pool.query("update promotions set is_active = true where id = $1", [promotionId]);
+  } catch {
+    return { error: "Не удалось опубликовать акцию." };
+  }
 
   revalidatePath("/admin/promotions");
   revalidatePath("/");
@@ -54,13 +48,13 @@ export async function publishAndNotifyPromotion(promotionId: string) {
 }
 
 export async function deactivatePromotion(promotionId: string) {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("promotions")
-    .update({ is_active: false })
-    .eq("id", promotionId);
+  await requireAdmin();
 
-  if (error) return { error: "Не удалось снять акцию с публикации." };
+  try {
+    await pool.query("update promotions set is_active = false where id = $1", [promotionId]);
+  } catch {
+    return { error: "Не удалось снять акцию с публикации." };
+  }
 
   revalidatePath("/admin/promotions");
   revalidatePath("/");

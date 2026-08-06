@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { notFound, redirect } from "next/navigation";
+import { getOrderWithItems } from "@/lib/queries/orders";
+import { getSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { ClearCartOnMount } from "./clear-cart";
@@ -31,14 +32,12 @@ export default async function OrderConfirmationPage({
   params: Promise<{ orderId: string }>;
 }) {
   const { orderId } = await params;
-  const supabase = await createClient();
-  const { data: order } = await supabase
-    .from("orders")
-    .select("id, status, total_kopecks, created_at")
-    .eq("id", orderId)
-    .maybeSingle();
+  const user = await getSession();
+  if (!user) redirect(`/login?redirect=/checkout/confirmation/${orderId}`);
 
-  if (!order) notFound();
+  const result = await getOrderWithItems(orderId, user.id);
+  if (!result) notFound();
+  const { order } = result;
 
   const copy = STATUS_COPY[order.status] ?? STATUS_COPY.created;
 

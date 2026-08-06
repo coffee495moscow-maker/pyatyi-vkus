@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { pool } from "@/lib/db/pool";
 
 export type B2bActionState = { error: string | null; success: boolean };
 
@@ -18,16 +18,13 @@ export async function submitB2bInquiry(
     return { error: "Заполните название компании, имя и телефон.", success: false };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("b2b_inquiries").insert({
-    company_name: companyName,
-    contact_name: contactName,
-    phone,
-    email: email || null,
-    message: message || null,
-  });
-
-  if (error) {
+  try {
+    await pool.query(
+      `insert into b2b_inquiries (company_name, contact_name, phone, email, message)
+       values ($1, $2, $3, $4, $5)`,
+      [companyName, contactName, phone, email || null, message || null],
+    );
+  } catch {
     return { error: "Не удалось отправить заявку. Попробуйте позже.", success: false };
   }
 

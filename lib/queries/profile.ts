@@ -1,18 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/session";
 
+/** users already carries every "profile" field — this is just getSession(). */
 export async function getCurrentProfile() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  const { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  return data;
+  return getSession();
 }

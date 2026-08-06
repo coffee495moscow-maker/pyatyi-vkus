@@ -3,9 +3,7 @@ import Image from "next/image";
 import { ProductPlaceholder } from "@/components/ProductPlaceholder";
 import { PromoBadge } from "@/components/PromoBadge";
 import { formatPrice } from "@/lib/utils";
-import type { Database } from "@/lib/supabase/types";
-
-type Product = Database["public"]["Tables"]["products"]["Row"];
+import type { Product } from "@/lib/db/types";
 
 export function ProductCard({
   product,

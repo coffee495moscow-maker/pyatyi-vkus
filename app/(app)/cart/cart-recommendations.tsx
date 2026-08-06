@@ -5,9 +5,7 @@ import { getCartRecommendations } from "@/lib/actions/recommendations";
 import { ProductPlaceholder } from "@/components/ProductPlaceholder";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { formatPrice } from "@/lib/utils";
-import type { Database } from "@/lib/supabase/types";
-
-type Product = Database["public"]["Tables"]["products"]["Row"];
+import type { Product } from "@/lib/db/types";
 
 export function CartRecommendations({ productIds }: { productIds: string[] }) {
   const [products, setProducts] = useState<Product[]>([]);

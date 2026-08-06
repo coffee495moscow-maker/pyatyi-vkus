@@ -3,11 +3,8 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
-import type { Database } from "@/lib/supabase/types";
+import type { Category, Product } from "@/lib/db/types";
 import type { ProductActionState } from "@/lib/actions/admin/products";
-
-type Product = Database["public"]["Tables"]["products"]["Row"];
-type Category = Database["public"]["Tables"]["categories"]["Row"];
 
 const initialState: ProductActionState = { error: null };
 

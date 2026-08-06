@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { Award, Lock } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/queries/profile";
 import {
   getBadgesWithEarnedState,
@@ -26,18 +25,13 @@ function nextTierProgress(lifetimePoints: number, tier: string) {
 }
 
 export default async function BonusesPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login?redirect=/bonuses");
-
   const [profile, ledger, badges] = await Promise.all([
     getCurrentProfile(),
     getLoyaltyLedger(),
     getBadgesWithEarnedState(),
   ]);
+
+  if (!profile) redirect("/login?redirect=/bonuses");
 
   const tier = profile?.tier ?? "bronze";
   const progress = nextTierProgress(profile?.lifetime_points ?? 0, tier);

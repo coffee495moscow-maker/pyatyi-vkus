@@ -1,46 +1,33 @@
-import { createClient } from "@/lib/supabase/server";
+import { pool } from "@/lib/db/pool";
+import { getSession } from "@/lib/session";
+import type { Badge, LoyaltyLedgerEntry } from "@/lib/db/types";
 
-export async function getLoyaltyLedger() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+export async function getLoyaltyLedger(): Promise<LoyaltyLedgerEntry[]> {
+  const user = await getSession();
   if (!user) return [];
 
-  const { data, error } = await supabase
-    .from("loyalty_ledger")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  if (error) throw error;
-  return data;
+  const { rows } = await pool.query<LoyaltyLedgerEntry>(
+    "select * from loyalty_ledger where user_id = $1 order by created_at desc limit 50",
+    [user.id],
+  );
+  return rows;
 }
 
-export async function getBadgesWithEarnedState() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export async function getBadgesWithEarnedState(): Promise<
+  (Badge & { earned: boolean })[]
+> {
+  const user = await getSession();
+  const { rows: badges } = await pool.query<Badge>("select * from badges");
 
-  const { data: badges, error } = await supabase
-    .from("badges")
-    .select("*");
+  if (!user) return badges.map((b) => ({ ...b, earned: false }));
 
-  if (error) throw error;
+  const { rows: earned } = await pool.query<{ badge_id: string }>(
+    "select badge_id from user_badges where user_id = $1",
+    [user.id],
+  );
+  const earnedIds = new Set(earned.map((e) => e.badge_id));
 
-  if (!user) return (badges ?? []).map((b) => ({ ...b, earned: false }));
-
-  const { data: earned } = await supabase
-    .from("user_badges")
-    .select("badge_id")
-    .eq("user_id", user.id);
-
-  const earnedIds = new Set((earned ?? []).map((e) => e.badge_id));
-
-  return (badges ?? []).map((b) => ({ ...b, earned: earnedIds.has(b.id) }));
+  return badges.map((b) => ({ ...b, earned: earnedIds.has(b.id) }));
 }
 
 export const LOYALTY_REASON_LABELS: Record<string, string> = {

@@ -1,31 +1,25 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/supabase/types";
-
-type Product = Database["public"]["Tables"]["products"]["Row"];
+import { pool } from "@/lib/db/pool";
+import type { Product } from "@/lib/db/types";
 
 export async function getCartRecommendations(
   cartProductIds: string[],
 ): Promise<Product[]> {
   if (cartProductIds.length === 0) return [];
 
-  const supabase = await createClient();
-  const { data: pairs, error } = await supabase.rpc("get_paired_products", {
-    p_product_ids: cartProductIds,
-    p_limit: 4,
-  });
+  const { rows: pairs } = await pool.query<{ product_id: string; pair_count: number }>(
+    "select * from get_paired_products($1::uuid[], 4)",
+    [cartProductIds],
+  );
 
-  if (error || !pairs || pairs.length === 0) return [];
+  if (pairs.length === 0) return [];
 
   const productIds = pairs.map((p) => p.product_id);
-  const { data: products } = await supabase
-    .from("products")
-    .select("*")
-    .in("id", productIds)
-    .eq("is_available", true);
-
-  if (!products) return [];
+  const { rows: products } = await pool.query<Product>(
+    "select * from products where id = any($1::uuid[]) and is_available = true",
+    [productIds],
+  );
 
   // Preserve the ranking returned by get_paired_products (highest pair_count first).
   const order = new Map(productIds.map((id, idx) => [id, idx]));

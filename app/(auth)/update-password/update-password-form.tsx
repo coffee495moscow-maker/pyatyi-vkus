@@ -7,7 +7,7 @@ import { Input, Label } from "@/components/ui/input";
 
 const initialState: AuthActionState = { error: null };
 
-export function UpdatePasswordForm() {
+export function UpdatePasswordForm({ token }: { token: string }) {
   const [state, formAction, pending] = useActionState(
     updatePassword,
     initialState,
@@ -15,6 +15,7 @@ export function UpdatePasswordForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
+      <input type="hidden" name="token" value={token} />
       <div>
         <Label htmlFor="password">Новый пароль</Label>
         <Input

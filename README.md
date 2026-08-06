@@ -1,77 +1,104 @@
 # Пятый вкус
 
 PWA-приложение премиальной кондитерской «Пятый вкус»: каталог, корзина,
-онлайн-оплата, личный кабинет с бонусами и достижениями, push-уведомления,
-админ-панель.
+онлайн-оплата, личный кабинет с бонусами и достижениями, админ-панель.
 
-**Стек**: Next.js 16 (App Router, TypeScript), Tailwind CSS v4, Supabase
-(Postgres + Auth + Storage), ЮKassa, Web Push.
+**Стек**: Next.js 16 (App Router, TypeScript), Tailwind CSS v4, self-hosted
+Postgres (без Supabase — своя авторизация и своё файловое хранилище),
+ЮKassa. Никаких сторонних управляемых сервисов: база данных, авторизация и
+фото товаров — всё на вашей инфраструктуре.
 
-## Запуск локально
+## Деплой на свой сервер (Docker Compose)
+
+Всё, что нужно — сервер с Docker. Из этой рабочей копии на сервере:
+
+```bash
+# 1. Установить Docker, если его ещё нет
+curl -fsSL https://get.docker.com | sh
+
+# 2. Склонировать репозиторий
+git clone https://github.com/coffee495moscow-maker/pyatyi-vkus.git /opt/pyatyi-vkus
+cd /opt/pyatyi-vkus
+
+# 3. Настроить переменные окружения
+cp .env.example .env
+nano .env   # обязательно: POSTGRES_PASSWORD; по желанию: YOOKASSA_*, SMTP_*
+
+# 4. Собрать и запустить (Postgres + приложение + Caddy-прокси)
+docker compose up -d --build
+
+# 5. Применить сид каталога — один раз, сразу после первого запуска
+#    (миграции применяются автоматически при каждом старте контейнера app)
+docker compose exec app node scripts/seed.mjs
+
+# 6. Зарегистрироваться на сайте, затем выдать себе роль админа
+#    (docker compose exec запускает команду в уже настроенном контейнере
+#    app, DATABASE_URL брать заново не нужно)
+docker compose exec app node scripts/make-admin.mjs you@example.com
+```
+
+Сайт будет доступен по IP сервера (порт 80, без HTTPS — сертификат для
+голого IP не выпускается). Когда появится домен: пропишите его A-запись на
+IP сервера, раскомментируйте `SITE_ADDRESS=ваш-домен.ru` в `.env`, затем
+`docker compose up -d` — Caddy автоматически получит HTTPS через Let's
+Encrypt, без дополнительной настройки.
+
+**Обновление после новых изменений в коде**:
+```bash
+cd /opt/pyatyi-vkus && git pull && docker compose up -d --build
+```
+
+## Запуск локально (для разработки)
 
 ```bash
 npm install
-cp .env.example .env.local   # заполнить значениями своего Supabase-проекта
+cp .env.example .env.local   # DATABASE_URL на свой локальный/удалённый Postgres
+npm run db:migrate
+npm run db:seed
 npm run dev
 ```
 
-## Настройка Supabase (обязательно перед первым запуском)
+## Переменные окружения
 
-1. Создать проект на [supabase.com](https://supabase.com).
-2. Скопировать `Project URL`, `anon key`, `service_role key` (Settings →
-   API) в `.env.local`.
-3. Применить миграции — через Supabase CLI:
-   ```bash
-   supabase link --project-ref <ref>
-   supabase db push
-   ```
-   Миграции лежат в `supabase/migrations/` и создают всю схему, RLS-политики
-   и служебные функции (`create_order`, `attach_payment`,
-   `check_and_award_badges`, `admin_update_order_status`,
-   `get_paired_products`), а также бакет `product-images` в Storage.
-4. Засеять каталог (3 категории, 8 товаров, перенесённых из исходного
-   прототипа):
-   ```bash
-   psql "$(supabase db url)" -f supabase/seed.sql
-   ```
-5. Зарегистрироваться в приложении, затем вручную выдать себе роль админа:
-   ```sql
-   update public.profiles set role = 'admin' where id = '<ваш auth.users.id>';
-   ```
+Все описаны с комментариями в `.env.example`. Коротко:
+
+- `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` — для Docker Compose,
+  из них автоматически собирается `DATABASE_URL` для контейнера `app`.
+- `DATABASE_URL` — используется только при запуске не через Compose.
+- `UPLOAD_DIR` — куда сохраняются загруженные фото товаров/акций (должен
+  быть на постоянном томе — в Compose уже примонтирован).
+- `SITE_ADDRESS` — домен для Caddy (см. выше); без него — обычный HTTP по IP.
+- `PAYMENT_PROVIDER`, `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY` — оплата.
+- `NEXT_PUBLIC_SITE_URL` — абсолютный адрес сайта (для ссылок оплаты/сброса пароля).
+- `SMTP_*` — опционально, для писем восстановления пароля; без них ссылка
+  просто пишется в лог контейнера (`docker compose logs app`).
 
 ## Оплата (ЮKassa)
 
-Нужен отдельный аккаунт в ЮKassa (заводится клиентом самостоятельно —
-Claude Code его не создаёт). `YOOKASSA_SHOP_ID` / `YOOKASSA_SECRET_KEY` —
-из личного кабинета ЮKassa. Провайдер подключается через абстракцию
-`lib/payments/provider.ts`, так что смена на другого провайдера (например
-CloudPayments) не требует правок вызывающего кода.
-
-## Push-уведомления
-
-1. Сгенерировать ключи: `npx web-push generate-vapid-keys`.
-2. `NEXT_PUBLIC_VAPID_PUBLIC_KEY` — в `.env.local`/Vercel; `VAPID_PRIVATE_KEY`
-   и `VAPID_SUBJECT` — **как секреты Edge Function**, не как обычные env:
-   ```bash
-   supabase secrets set VAPID_PRIVATE_KEY=... VAPID_PUBLIC_KEY=... VAPID_SUBJECT=mailto:you@example.com
-   ```
-3. Деплой функции и настройка Database Webhooks — см.
-   `supabase/functions/send-push/README.md`.
+Нужен отдельный аккаунт в ЮKassa (заводится вами самостоятельно). Ключи —
+из личного кабинета ЮKassa (Settings → Shop credentials) в `.env`. Провайдер
+подключается через абстракцию `lib/payments/provider.ts`, так что смена на
+другого провайдера (например CloudPayments) не требует правок вызывающего
+кода — только добавить `lib/payments/<provider>.ts` и один case в
+`lib/payments/index.ts`.
 
 ## Известные TODO перед боевым запуском
 
 - **Фото товаров** — сейчас везде графические SVG-заглушки
   (`components/ProductPlaceholder.tsx`), сгенерированные детерминированно
   по slug товара. Реальные фото загружаются через `/admin/menu` (форма
-  редактирования товара) — `image_path` автоматически подхватится вместо
+  товара, поле «Фото») — `image_path` автоматически подхватится вместо
   заглушки, правок кода не требуется.
 - **Иконки PWA** — плейсхолдер-иконки в `public/icons/` и
   `public/apple-touch-icon.png` сгенерированы скриптом
   `scripts/generate-icons.mjs` (требует `sharp`, не входит в зависимости
-  проекта). Заменить на фирменные перед запуском.
+  проекта — `npm i -D sharp` перед повторным запуском). Заменить на
+  фирменные перед запуском.
 - **Telegram** — ссылка в `content/contacts.ts` пока пустышка
   (`https://t.me/`), реальный хендл не был предоставлен.
 - **ЮKassa** — нужен реальный аккаунт продавца и ключи (см. выше).
+- **SMTP** — без него восстановление пароля работает только «вручную»
+  (ссылка в логах контейнера), для реальных писем нужен SMTP-провайдер.
 
 ## Структура
 
@@ -79,12 +106,16 @@ CloudPayments) не требует правок вызывающего кода.
 app/(app)/       — публичные страницы с нижним таб-баром (Главная/Меню/Бонусы/Профиль)
 app/(auth)/      — вход/регистрация/сброс пароля
 app/admin/       — админ-панель (роль admin)
-app/api/         — вебхук ЮKassa, push subscribe/unsubscribe
+app/api/         — вебхук ЮKassa
+app/uploads/     — раздача загруженных файлов с диска (UPLOAD_DIR)
 lib/actions/     — Server Actions
-lib/queries/     — серверные запросы к Supabase
+lib/queries/     — серверные запросы к Postgres
 lib/payments/    — абстракция платёжного провайдера + реализация ЮKassa
+lib/session.ts   — своя авторизация (сессии в БД, httpOnly-кука)
+lib/storage.ts   — сохранение загруженных файлов на диск
 content/         — статический текст бренда (перенесён из исходного прототипа)
-supabase/        — миграции, сид каталога, Edge Function отправки push
+db/              — миграции, сид каталога
+scripts/         — миграции/сид/назначение админа как CLI-скрипты
 legacy/          — исходный статический прототип (для истории)
 ```
 

@@ -3,13 +3,13 @@
 -- image_path is left NULL everywhere so the ProductPlaceholder component
 -- renders until real product photography is uploaded via /admin/menu.
 
-insert into public.categories (slug, name, sort_order) values
+insert into categories (slug, name, sort_order) values
   ('corpus', 'Корпусные пирожные', 1),
   ('cheesecake', 'Чизкейки', 2),
   ('fresh', 'Свежая продукция', 3)
 on conflict (slug) do update set name = excluded.name, sort_order = excluded.sort_order;
 
-insert into public.products (slug, name, description, price_kopecks, category_id, is_new, is_hit, is_featured, sort_order)
+insert into products (slug, name, description, price_kopecks, category_id, is_new, is_hit, is_featured, sort_order)
 select v.slug, v.name, v.description, v.price_kopecks, c.id, v.is_new, v.is_hit, v.is_featured, v.sort_order
 from (
   values
@@ -22,7 +22,7 @@ from (
     ('limonnyy-tart', 'Лимонный тарт', 'Хрустящая основа, лимонный крем и воздушная меренга.', 19000, 'fresh', false, false, false, 7),
     ('anna-pavlova', 'Анна Павлова', 'Хрустящее безе, нежный крем и свежий ягодный акцент.', 21000, 'fresh', false, false, true, 8)
 ) as v(slug, name, description, price_kopecks, category_slug, is_new, is_hit, is_featured, sort_order)
-join public.categories c on c.slug = v.category_slug
+join categories c on c.slug = v.category_slug
 on conflict (slug) do update set
   name = excluded.name,
   description = excluded.description,
