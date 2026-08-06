@@ -1,6 +1,7 @@
 import { pool } from "@/lib/db/pool";
 import { getSession } from "@/lib/session";
 import type { Product } from "@/lib/db/types";
+import { previewProducts, shouldUsePreviewCatalog } from "@/lib/preview-catalog";
 
 /**
  * "Вам может понравиться" on the product detail page. Logged-in users with
@@ -14,6 +15,12 @@ export async function getPersonalizedRecommendations(
   fallbackCategoryId: string,
   limit = 4,
 ): Promise<Product[]> {
+  if (shouldUsePreviewCatalog()) {
+    const candidates = previewProducts.filter((product) => product.id !== excludeProductId);
+    const featured = candidates.filter((product) => product.is_featured || product.is_hit);
+    return (featured.length > 0 ? featured : candidates.filter((product) => product.category_id === fallbackCategoryId)).slice(0, limit);
+  }
+
   const user = await getSession();
 
   if (user) {
