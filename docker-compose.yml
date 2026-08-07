@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pyatyi_vkus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-pyatyi_vkus}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pyatyi_vkus}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Overrides whatever DATABASE_URL is in .env — the app always talks to
+      # the `db` service on the compose network, not an external host.
+      DATABASE_URL: postgres://${POSTGRES_USER:-pyatyi_vkus}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-pyatyi_vkus}
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads_data:/data/uploads
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # List form (no "=value") passes SITE_ADDRESS through only if it's
+      # actually set — leaving it fully unset in the container when it isn't,
+      # so the Caddyfile's own default (the bare IP) applies correctly.
+      - SITE_ADDRESS
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  db_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:
