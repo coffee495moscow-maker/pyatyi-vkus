@@ -59,6 +59,19 @@ export class YooKassaProvider implements PaymentProvider {
     return { redirectUrl: data.confirmation.confirmation_url, paymentId: data.id };
   }
 
+  async cancelPayment(paymentId: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/payments/${paymentId}/cancel`, {
+      method: "POST",
+      headers: {
+        Authorization: authHeader(),
+        "Idempotence-Key": `cancel-${paymentId}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`YooKassa cancelPayment failed: ${response.status}`);
+    }
+  }
+
   async fetchPaymentStatus(paymentId: string) {
     const response = await fetch(`${API_BASE}/payments/${paymentId}`, {
       headers: { Authorization: authHeader() },

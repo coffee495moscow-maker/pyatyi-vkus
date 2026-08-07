@@ -18,4 +18,6 @@ export interface PaymentProvider {
   fetchPaymentStatus(
     paymentId: string,
   ): Promise<{ status: PaymentStatus; orderId: string | null }>;
+  /** Cancels an unconfirmed payment during a local checkout compensation flow. */
+  cancelPayment(paymentId: string): Promise<void>;
 }

@@ -2,24 +2,21 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { pool } from "@/lib/db/pool";
+import { digestToken } from "@/lib/security";
 import type { PublicUser } from "@/lib/db/types";
 
 const SESSION_COOKIE = "session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-// `Secure` cookies are only ever sent back over HTTPS. Tying this to
-// NODE_ENV alone breaks login on a fresh deploy — the documented first-run
-// setup serves plain HTTP on the server's bare IP (no domain yet, see
-// Caddyfile/README) — so this follows NEXT_PUBLIC_SITE_URL's scheme
-// instead, which the operator updates to https:// once a domain is set.
-const COOKIE_SECURE = (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https://");
+const COOKIE_SECURE = process.env.NODE_ENV === "production";
 
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");
+  const tokenDigest = digestToken(token);
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
   await pool.query("insert into sessions (id, user_id, expires_at) values ($1, $2, $3)", [
-    token,
+    tokenDigest,
     userId,
     expiresAt,
   ]);
@@ -39,7 +36,7 @@ export async function destroySession() {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
 
   if (token) {
-    await pool.query("delete from sessions where id = $1", [token]);
+    await pool.query("delete from sessions where id = $1", [digestToken(token)]);
   }
 
   cookieStore.delete(SESSION_COOKIE);
@@ -58,7 +55,7 @@ export async function getSession(): Promise<PublicUser | null> {
      from sessions s
      join users u on u.id = s.user_id
      where s.id = $1 and s.expires_at > now()`,
-    [token],
+    [digestToken(token)],
   );
 
   return rows[0] ?? null;

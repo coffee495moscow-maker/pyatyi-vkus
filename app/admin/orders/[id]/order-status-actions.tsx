@@ -6,10 +6,7 @@ import { updateOrderStatus } from "@/lib/actions/admin/orders";
 import { Button } from "@/components/ui/button";
 
 const TRANSITIONS: Record<string, { status: string; label: string }[]> = {
-  paid: [
-    { status: "preparing", label: "Начать готовить" },
-    { status: "cancelled", label: "Отменить" },
-  ],
+  paid: [{ status: "preparing", label: "Начать готовить" }],
   preparing: [{ status: "ready", label: "Готов к выдаче" }],
   ready: [{ status: "completed", label: "Отметить выданным" }],
 };

@@ -3,15 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { pool } from "@/lib/db/pool";
 import { requireAdmin } from "@/lib/session";
-
-// Mirrors the buttons shown in app/admin/orders/[id]/order-status-actions.tsx —
-// enforced here too, since a client can call this Server Action directly
-// with any (orderId, newStatus) pair regardless of what the UI offers.
-const ALLOWED_FROM: Record<string, string[]> = {
-  paid: ["preparing", "cancelled"],
-  preparing: ["ready"],
-  ready: ["completed"],
-};
+import { canTransitionOrder } from "@/lib/order-transitions";
 
 export async function updateOrderStatus(orderId: string, newStatus: string) {
   const admin = await requireAdmin();
@@ -24,16 +16,14 @@ export async function updateOrderStatus(orderId: string, newStatus: string) {
       "select status from orders where id = $1 for update",
       [orderId],
     );
-    const currentStatus = rows[0]?.status;
-
-    if (!currentStatus) {
+    const order = rows[0];
+    if (!order) {
       await client.query("rollback");
       return { error: "Заказ не найден." };
     }
-
-    if (!ALLOWED_FROM[currentStatus]?.includes(newStatus)) {
+    if (!canTransitionOrder(order.status, newStatus)) {
       await client.query("rollback");
-      return { error: "Недопустимый переход статуса." };
+      return { error: "Этот переход статуса недопустим." };
     }
 
     await client.query("update orders set status = $1 where id = $2", [newStatus, orderId]);
