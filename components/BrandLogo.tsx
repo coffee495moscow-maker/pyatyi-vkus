@@ -13,8 +13,8 @@ export function BrandMark({ className = "" }: { className?: string }) {
       src="/brand/pyatyi-vkus-mark.jpg"
       alt=""
       aria-hidden="true"
-      width={162}
-      height={159}
+      width={280}
+      height={390}
       className={`object-contain ${className}`}
     />
   );
@@ -30,8 +30,8 @@ export function BrandLogo({ compact = false, className = "" }: BrandLogoProps) {
     <Image
       src="/brand/pyatyi-vkus-logo.jpg"
       alt="Пятый вкус — лаборатория десертов"
-      width={320}
-      height={297}
+      width={815}
+      height={575}
       priority
       className={`h-auto w-32 object-contain ${className}`}
     />
