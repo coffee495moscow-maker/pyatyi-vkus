@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/BrandLogo";
 import { brand } from "@/content/brand";
 
 export default function HomePage() {
   return (
     <div className="flex flex-col gap-16 px-5 pt-8">
       <section className="flex flex-col gap-5">
+        <BrandLogo className="text-accent" />
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
           {brand.location}
         </p>

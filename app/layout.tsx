@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Prata, Manrope } from "next/font/google";
+import { Oranienbaum, Manrope } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
-const prata = Prata({
-  variable: "--font-prata",
+const oranienbaum = Oranienbaum({
+  variable: "--font-oranienbaum",
   weight: "400",
   subsets: ["latin", "cyrillic"],
 });
@@ -49,7 +49,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ru"
-      className={`${prata.variable} ${manrope.variable} h-full antialiased`}
+      className={`${oranienbaum.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-bg text-text">
         <ServiceWorkerRegister />

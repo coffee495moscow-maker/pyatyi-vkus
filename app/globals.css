@@ -13,7 +13,7 @@
   --color-danger: #e2694f;
   --color-success: #7fae6f;
 
-  --font-display: var(--font-prata);
+  --font-display: var(--font-oranienbaum);
   --font-body: var(--font-manrope);
 }
 
@@ -53,7 +53,7 @@ h1,
 h2,
 h3,
 .font-display {
-  font-family: var(--font-display), Prata, serif;
+  font-family: var(--font-display), Oranienbaum, serif;
   font-weight: 400;
   letter-spacing: -0.02em;
 }

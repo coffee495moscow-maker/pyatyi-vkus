@@ -2,17 +2,14 @@ import Link from "next/link";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { CartFAB } from "@/components/CartFAB";
 import { InstallPrompt } from "@/components/InstallPrompt";
-import { brand } from "@/content/brand";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-bg/90 px-5 py-4 backdrop-blur">
-        <Link href="/" className="font-display flex items-center gap-2 text-lg">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-accent text-accent">
-            5
-          </span>
-          {brand.name}
+        <Link href="/" aria-label="Пятый вкус — на главную">
+          <BrandLogo compact />
         </Link>
         <Link
           href="/profile"
